@@ -9,7 +9,7 @@
 
 fastapi
 uvicorn[standard] 
-pydantic
+pydantic[email]
 google-genai
 sqlalchemy
 databases[aiosqlite]
