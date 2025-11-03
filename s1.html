@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProphAI: Professional Innovation Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+body {
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background-color: #000000;
+    color: #950dd9;
+    transition: all 0.3s ease;
+}
+
+.spinner {
+    border-top-color: #f3f4f6;
+    -webkit-animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.score-text {
+    transition: color 0.5s ease-in-out, text-shadow 0.3s ease;
+}
+
+.high-contrast-header {
+    background-color: #0a0a0a;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+    border-bottom: 2px solid #6366f1;
+    color: #f3f4f6;
+}
+
+#content-wrapper {
+    display: flex;
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 2rem 0;
+    gap: 2.5%;
+}
+
+#chat-container {
+    width: 250px;
+    min-width: 250px;
+    max-height: 80vh;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    background-color: #1f2937;
+    border: 1px solid #6366f1;
+    align-self: flex-start;
+    position: sticky;
+    top: 100px;
+    border-radius: 1rem;
+    transition: all 0.3s ease-out;
+    overflow: scroll;
+}
+
+#chat-container:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 25px rgba(99, 102, 241, 0.7);
+}
+
+#history-display tbody td,
+#results-display tbody td {
+    vertical-align: top !important;
+    padding-top: 1rem !important; 
+    padding-bottom: 1rem !important;
+}
+
+
+main.main-content {
+    width: calc(100% - 250px - 2.5%);
+    padding: 0 2rem;
+    flex-grow: 1;
+}
+
+main.main-content h1, main.main-content p {
+    color: #f3f4f6;
+    text-shadow: 0px 0px 10px rgba(99, 102, 241, 0.3);
+}
+
+main form {
+    background-color: #0a0a0a;
+    border: 2px solid #374151;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease-out;
+}
+
+main form:hover {
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+}
+
+main form textarea {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f3f4f6;
+}
+
+main form textarea::placeholder {
+    color: #9ca3af;
+}
+
+#results-display {
+    background-color: #1f2937;
+    border: 2px solid #6366f1;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.6);
+    border-radius: 2rem;
+    padding: 2rem 3rem;
+    color: #f3f4f6;
+    transition: all 0.3s ease-out;
+}
+
+.data-card {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease-out;
+    color: #f3f4f6;
+}
+
+.data-card:hover {
+    border-color: #a5b4fc;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(99, 102, 241, 0.3);
+}
+
+#results-display thead {
+    background-color: #0a0a0a;
+}
+
+#results-display tbody tr {
+    background-color: #1f2937;
+}
+
+#results-display tbody tr:nth-child(even) {
+    background-color: #111827;
+}
+
+#results-display tbody tr:hover {
+    background-color: #374151;
+    transition: background-color 0.15s ease-in;
+}
+
+.hover-lift {
+    display: inline-block;
+    transition: transform 0.2s ease-out, color 0.2s ease, text-shadow 0.2s ease;
+    color: #f3f4f6;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    color: #a5b4fc;
+    text-shadow: 0 0 10px #a5b4fc;
+}
+
+.text-green-300 { color: #84cc16; }
+.text-yellow-300 { color: #facc15; }
+.text-red-300 { color: #f87171; }
+
+.validation-failed-text {
+    color: #a5b4fc !important;
+    text-shadow: none !important;
+}
+
+.validation-failed-value {
+    color: #f87171 !important;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+
+.dynamic-gradient {
+    background: linear-gradient(90deg, #6366f1, #a5b4fc, #facc15);
+    background-size: 200% auto;
+    animation: text-gradient-shift 8s ease infinite alternate;
+}
+
+@keyframes text-gradient-shift {
+    0% { background-position: 0% center; }
+    100% { background-position: 100% center; }
+}
+
+.high-contrast-header {
+    background-color: #0a0a0a;
+}
+
+.high-contrast-header h1, .high-contrast-header span, .high-contrast-header p {
+    color: transparent !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-image: linear-gradient(700deg, #a5b4fc, #6366f1, #facc15);
+    animation: text-gradient-shift 5s ease infinite alternate;
+    color: #a5b4fc !important;
+    transition: text-shadow 0.3s ease;
+}
+
+@media (max-width: 1024px) {
+    #content-wrapper {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    main.main-content {
+        width: 100%;
+        padding: 0;
+        order: 1;
+    }
+    #chat-container {
+        width: 100%;
+        margin-bottom: 20px;
+        position: relative;
+        order: 2;
+        top: auto;
+        min-width: unset;
+    }
+    main form {
+        padding: 1rem;
+    }
+}
+
+#head1 {
+    color: transparent !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-image: linear-gradient(700deg, #de6ff1d4, #6366f1, #facc15);
+    animation: text-gradient-shift 2s ease infinite alternate;
+    color: #a5b4fc !important;
+    transition: text-shadow 0.3s ease;
+}
+
+#head2 {
+    color: transparent !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-image: linear-gradient(140deg, #b05af1d4, #b4e991, #e7896c);
+    animation: text-gradient-shift 2s ease infinite alternate;
+    color: #b23fe3c0 !important;
+    transition: text-shadow 0.3s ease;
+}
+
+#head3 {
+    color: transparent !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-image: linear-gradient(60deg, #fc0000d4, #7ec7df, #f6cd00);
+    animation: text-gradient-shift 2s ease infinite alternate;
+    color: #a5b4fc !important;
+    transition: text-shadow 0.3s ease;
+}
+
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <header class="w-full high-contrast-header shadow-xl p-5 sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center">
+                
+                <span class="text-3xl font-extrabold text-indigo-700 mr-2 border-r-4 border-indigo-700 pr-2 hover-lift">PK</span>
+                <h1 class="text-3xl font-extrabold text-gray-900 hover-lift">Proph<span class="text-indigo-400">AI</span></h1>
+            </div>
+            <p class="text-sm text-gray-500 hidden sm:block hover-lift">Advanced Idea Analysis for Tech Innovators...</p>
+        </div>
+    </header>
+
+    <div id="auth-controls" class="max-w-7xl mx-auto py-4 px-8 flex justify-between items-center w-full high-contrast-header rounded-xl mb-6 shadow-md border-indigo-700 data-card">
+        <div id="user-status" class="text-lg font-bold text-white hover-lift">
+            Status: <span id="auth-status" class="text-red-300">Logged Out</span>
+        </div>
+        <div id="auth-buttons" class="space-x-4">
+            <button id="login-btn" class="px-5 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-500 transition duration-200">Login</button>
+            <button id="signup-btn" class="px-5 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-500 transition duration-200">Sign Up</button>
+        </div>
+    </div>
+    <div id="content-wrapper">
+        
+        <main class="main-content flex flex-col items-center pt-8">
+            <h1 class="text-5xl font-extrabold mb-4 tracking-tight hover-lift" id="head1">Predicting The Future of Innovation/Project</h1>
+            <p class="text-xl mb-12 hover-lift" id="head1">Get a data-driven blueprint for your software project.</p>
+
+            <form id="analysis-form" class="w-full p-12 rounded-3xl shadow-3xl border-t-8 border-indigo-600">
+                <h2 class="text-3xl font-bold mb-6 hover-lift" id="head2">Enter Your Innovation</h2>
+                
+                <div class="mb-6">
+                    <label for="idea-input" class="block text-base font-semibold mb-3 hover-lift">Project Idea Description (Minimum 20 characters):</label>
+                    <textarea
+                        id="idea-input"
+                        rows="8"
+                        placeholder="Describe your innovative software project idea here in detail (e.g., An AI-driven decentralized platform for real-time asset analysis using serverless architecture...)"
+                        class="w-full p-5 border-3 rounded-xl focus:ring-indigo-600 focus:border-indigo-600 transition duration-300 ease-in-out resize-none text-lg placeholder-gray-400"
+                        required
+                    ></textarea>
+                    <p class="mt-3 text-sm hover-lift" id="head3">~ Focus on technology, scale, and core problem-solving for a precise prediction.</p>
+                </div>
+                
+                <button
+                    type="submit"
+                    id="submit-button"
+                    class="mt-6 w-full px-8 py-5 text-xl text-white font-extrabold rounded-xl transition duration-300 transform active:scale-95 shadow-lg bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-400 disabled:bg-indigo-800 flex items-center justify-center space-x-2"
+                >
+                    <span id="head2">RUN (PREDICTION ON YOUR PRODUCT)</span> <span class="text-2xl ml-2"></span>
+                </button>
+                <p id="hint-message" class="mt-4 font-medium text-sm text-center hidden">  ~~ Please provide more details (at least 20 characters). ~~</p>
+            </form>
+
+            <div id="loading-indicator" class="mt-16 text-center hidden">
+                <div class="spinner rounded-full h-12 w-12 border-4 mx-auto mb-4"></div>
+                <p id="loading-message" class="text-2xl font-semibold hover-lift"></p>
+            </div>
+
+            <div id="history-display" class="w-full mt-16 data-card p-8 rounded-3xl hidden">
+                <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Your Analysis History.....</h3>
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Idea Summary</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body" class="divide-y divide-gray-800">
+                         </tbody>
+                </table>
+            </div>
+            <button id="toggle-history-btn" class="mt-8 px-6 py-3 bg-gray-700 text-white font-semibold rounded hover:bg-gray-600 transition duration-200 hidden">View History</button>
+            <div id="results-display" class="w-full mt-20 hidden data-card">
+                </div>
+        </main>
+
+        <div id="chat-container" class="rounded-xl flex flex-col"> 
+            <div class="bg-indigo-700 text-white p-4 rounded-t-xl flex justify-between items-center cursor-pointer hover:bg-indigo-600 transition duration-200 data-card">
+                <span class="font-bold text-lg hover-lift" id="head3">Tech Assistant</span>
+                <button id="toggle-chat-button" class="text-xl text-white hover:text-gray-300 focus:outline-none leading-none">
+                    <span id="chat-toggle-icon">−</span>
+                </button>
+            </div>
+
+            <div id="chat-window" class="flex flex-col flex-grow">
+                <div id="chat-log" class="space-y-3 flex-grow bg-gray-900/50">
+                    <div class="text-xs text-center py-2 px-4 italic hover-lift" id="head1">Hello! Ask me general questions. For project analysis, use the main form.</div>
+                </div>
+                
+                <form id="chat-form" class="p-3 border-t border-gray-700 bg-gray-900">
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="Ask a quick question..."
+                            class="w-full p-2.5 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            required
+                        />
+                        <button 
+                            type="submit" 
+                            id="chat-send-button"
+                            class="bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-500 disabled:bg-indigo-800 text-sm font-semibold transition duration-200"
+                        >
+                            Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center">
+        <div id="auth-form-container" class="bg-gray-800 p-8 rounded-xl w-96 shadow-2xl border-t-4 border-indigo-500 data-card">
+            <h3 id="form-title" class="text-3xl font-bold text-white mb-6">Sign Up</h3>
+            <form id="auth-form" class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email" class="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white" required>
+                <input type="password" id="auth-password" placeholder="Password" class="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white" required>
+                <p id="auth-message" class="text-red-300 text-sm hidden"></p>
+                <button type="submit" id="auth-submit" class="w-full py-3 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-500 transition duration-200">Submit</button>
+            </form>
+            <p class="mt-4 text-sm text-gray-400 text-center cursor-pointer" id="toggle-auth-mode">Already have an account? <span class="text-indigo-400 hover:underline" >Login</span></p>
+        </div>
+    </div><script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+     const DEPLOYED_URL = "https://prophai-backend.onrender.com";
+     const BACKEND_ENDPOINT = `${DEPLOYED_URL}/analyze`;
+     const CHAT_ENDPOINT = `${DEPLOYED_URL}/chat`;
+     const HISTORY_ENDPOINT = `${DEPLOYED_URL}/history`;
+
+     let CURRENT_USER = null;
+     let isChatOpen = true;
+
+     const form = document.getElementById('analysis-form');
+     const ideaInput = document.getElementById('idea-input');
+     const submitButton = document.getElementById('submit-button');
+     const loadingIndicator = document.getElementById('loading-indicator');
+     const resultsDisplay = document.getElementById('results-display');
+     const hintMessage = document.getElementById('hint-message');
+     const loadingMessage = document.getElementById('loading-message');
+     const historyTableBody = document.getElementById('history-table-body');
+
+     const authModal = document.getElementById('auth-modal');
+     const formTitle = document.getElementById('form-title');
+     const toggleLink = document.getElementById('toggle-auth-mode');
+     const authForm = document.getElementById('auth-form');
+     const authEmail = document.getElementById('auth-email');
+     const authPassword = document.getElementById('auth-password');
+     const authMessage = document.getElementById('auth-message');
+     const authSubmit = document.getElementById('auth-submit');
+     const statusEl = document.getElementById('auth-status');
+     const authButtonsDiv = document.getElementById('auth-buttons');
+     const historyBtn = document.getElementById('toggle-history-btn');
+
+     const chatForm = document.getElementById('chat-form');
+     const chatInput = document.getElementById('chat-input');
+     const chatLog = document.getElementById('chat-log');
+     const chatSendButton = document.getElementById('chat-send-button');
+     const chatWindow = document.getElementById('chat-window');
+     const toggleChatButton = document.getElementById('toggle-chat-button');
+     const chatToggleIcon = document.getElementById('chat-toggle-icon');
+
+
+     const loadingExpressions = [
+         "Analyzing Data... :-|",
+         "Crunching Numbers... :D",
+         "Predicting Future... :O",
+         "Checking Viability... ;-)",
+         "Almost Done... :P"
+     ];
+     let expressionIndex = 0;
+     let loadingInterval;
+     const startLoadingAnimation = () => {
+         loadingMessage.textContent = loadingExpressions[expressionIndex];
+         loadingInterval = setInterval(() => {
+             expressionIndex = (expressionIndex + 1) % loadingExpressions.length;
+             loadingMessage.textContent = loadingExpressions[expressionIndex];
+         }, 750);
+     };
+     const stopLoadingAnimation = () => {
+         clearInterval(loadingInterval);
+         loadingMessage.textContent = "";
+     };
+
+     const getColorClass = (score) => {
+         if (score >= 80) return 'text-green-300';
+         if (score >= 60) return 'text-yellow-300';
+         return 'text-red-300';
+     };
+
+     const scrollToBottom = (element = chatLog) => {
+         element.scrollTop = element.scrollHeight;
+     };
+
+
+     const renderTechStack = (stack) => {
+         return stack.map(item => `
+             <tr class="data-card hover:bg-gray-700 transition duration-150">
+                 <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.component}</td>
+                 <td class="px-6 py-4 text-white font-bold hover-lift">${item.technology}</td>
+                 <td class="px-6 py-4 text-sm text-gray-400 hover-lift">${item.justification}</td>
+             </tr>
+         `).join('');
+     };
+
+     const renderPhases = (phases) => {
+         return phases.map(item => `
+             <div class="p-5 data-card rounded-xl border-l-4 border-indigo-500 hover:shadow-xl transition duration-300">
+                 <p class="text-lg font-extrabold text-indigo-300 hover-lift">${item.phase}</p>
+                 <p class="text-sm font-semibold text-gray-400 mt-2">Duration: <span class="text-white hover-lift">${item.duration}</span></p>
+                 <p class="text-sm text-gray-500 mt-1 hover-lift">${item.focus}</p>
+             </div>
+         `).join('');
+     };
+
+     const renderCompetition = (competitors) => {
+         return competitors.map(item => `
+             <tr class="data-card hover:bg-gray-700 transition duration-150">
+                 <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.competitor}</td>
+                 <td class="px-6 py-4 text-sm text-gray-500 hover-lift">${item.similarFeatures}</td>
+                 <td class="px-6 py-4 text-white font-bold hover-lift">${item.differentiation}</td>
+             </tr>
+         `).join('');
+     };
+
+     const renderResults = (result) => {
+         const totalScore = Math.round((result.noveltyScore + result.trendsScore + result.viralityPotential) / 3);
+         const totalColor = getColorClass(totalScore);
+         const noveltyColor = getColorClass(result.noveltyScore);
+         const trendsColor = getColorClass(result.trendsScore);
+         const viralityColor = getColorClass(result.viralityPotential);
+
+         const isValidationFailed = totalScore === 0;
+
+         resultsDisplay.innerHTML = `
+             <h2 class="text-4xl font-extrabold text-white mb-8 border-b-4 border-indigo-500 pb-4 hover-lift">
+                 <span class="text-green-300 mr-3">✓</span> **Prediction Complete: Your Future Blueprint**
+             </h2>
+
+             <div class="bg-gray-900/70 text-white p-10 rounded-2xl mb-12 flex flex-col md:flex-row justify-between items-center shadow-2xl border border-indigo-600 data-card">
+                 <div>
+                     <p class="text-xl font-medium opacity-80 uppercase tracking-wider text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Total ProphAI Innovation Score</p>
+                     <p class="text-7xl font-extrabold mt-3 score-text ${totalColor} hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${totalScore}<span class="text-4xl">%</span></p>
+                 </div>
+                 <div class="md:text-right mt-6 md:mt-0">
+                     <p class="text-xl font-semibold opacity-90 text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Projected Net Worth Potential (3 Years):</p>
+                     <p class="text-4xl font-extrabold mt-2 text-yellow-300 hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${result.netWorthEstimate}</p>
+                     <p class="mt-2 text-base opacity-70 text-gray-400 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Long-Term Viability: <span class="${isValidationFailed ? 'validation-failed-value' : ''}">${result.longTermViability}</span></p>
+                 </div>
+             </div>
+
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                 <div class="p-6 data-card rounded-xl border-t-4 ${noveltyColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">INNOVATION SCORE</p>
+                     <p class="text-5xl font-extrabold mt-3 score-text ${noveltyColor} hover-lift">${result.noveltyScore}<span class="text-2xl">%</span></p>
+                 </div>
+                 <div class="p-6 data-card rounded-xl border-t-4 ${trendsColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">MARKET TRENDS FIT</p>
+                     <p class="text-5xl font-extrabold mt-3 score-text ${trendsColor} hover-lift">${result.trendsScore}<span class="text-2xl">%</span></p>
+                 </div>
+                 <div class="p-6 data-card rounded-xl border-t-4 ${viralityColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">VIRALITY POTENTIAL</p>
+                     <p class="text-5xl font-extrabold mt-3 score-text ${viralityColor} hover-lift">${result.viralityPotential}<span class="text-2xl">%</span></p>
+                 </div>
+             </div>
+
+             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Optimal Tech Stack Recommendation |</h3>
+             <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
+                 <table class="min-w-full divide-y divide-gray-700">
+                     <thead class="bg-gray-800">
+                         <tr>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Component</th>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Technology</th>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Justification</th>
+                         </tr>
+                     </thead>
+                     <tbody class="divide-y divide-gray-800">
+                         ${renderTechStack(result.techStack)}
+                     </tbody>
+                 </table>
+             </div>
+
+             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 mt-10 hover-lift">Competitive Landscape & Strategic Moat |</h3>
+             <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
+                 <table class="min-w-full divide-y divide-gray-700">
+                     <thead class="bg-gray-800">
+                         <tr>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Competitor / Existing Solution</th>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Similar Features / Overlap</th>
+                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Your Key Differentiation</th>
+                         </tr>
+                     </thead>
+                     <tbody class="divide-y divide-gray-800">
+                         ${renderCompetition(result.competitiveLandscape)}
+                     </tbody>
+                 </table>
+             </div>
+
+             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Project Execution Roadmap |</h3>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                 ${renderPhases(result.projectPhases)}
+             </div>
+
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div class="p-8 data-card rounded-2xl border-l-4 border-indigo-500 shadow-md">
+                     <p class="text-xl font-bold text-white mb-3 hover-lift">Uniqueness & Ecosystem Fit</p>
+                     <p class="text-gray-300 mb-4 text-base hover-lift">${result.uniquenessSummary}</p>
+                     <p class="text-base font-semibold text-red-300 mt-4 border-t border-gray-700 pt-3 hover-lift">Key Risks: <span class="font-normal text-white">${result.ecosystemRisks}</span></p>
+                     <p class="text-base font-semibold text-green-300 mt-2 hover-lift">Adoption Drivers: <span class="font-normal text-white">${result.adoptionDrivers}</span></p>
+                 </div>
+
+                 <div class="p-8 bg-gray-900/70 rounded-2xl border-t-4 border-indigo-600 shadow-md border border-indigo-700 data-card">
+                     <p class="text-xl font-bold text-white mb-4 flex items-center hover-lift">Your Actionable Next Steps</p>
+                     <ul class="list-disc list-outside ml-5 space-y-3 text-gray-300 text-base">
+                         ${result.actionableNextSteps.map(step => `<li class="pl-1 hover-lift">${step}</li>`).join('')}
+                     </ul>
+
+                     <div class="mt-6 pt-4 border-t border-gray-700">
+                         <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mb-2 hover-lift">Technical Appeal:</p>
+                         <p class="text-base font-bold text-white hover-lift">${result.techAppeal}</p>
+                         <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mt-4 mb-3 hover-lift">Key Focus Keywords:</p>
+                         <div class="flex flex-wrap gap-2">
+                             ${result.keywords.map(keyword => `<span class="px-3 py-1 bg-indigo-700 text-white text-sm font-medium rounded-full hover:bg-indigo-500 transition duration-150 hover-lift">${keyword}</span>`).join('')}
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         `;
+         resultsDisplay.classList.remove('hidden');
+     };
+
+     const displayMessage = (message, sender) => {
+         const msgDiv = document.createElement('div');
+         msgDiv.classList.add('flex', 'mx-3');
+
+         if (sender === 'user') {
+             msgDiv.classList.add('justify-end');
+             msgDiv.innerHTML = `<div class="bg-indigo-600 text-white p-3 rounded-t-xl rounded-bl-xl max-w-xs text-sm shadow-md">${message}</div>`;
+         } else {
+             msgDiv.classList.add('justify-start');
+             msgDiv.innerHTML = `<div class="bg-gray-800 text-white p-3 rounded-t-xl rounded-br-xl max-w-xs text-sm shadow-md whitespace-pre-wrap">${message}</div>`;
+         }
+         chatLog.appendChild(msgDiv);
+         scrollToBottom();
+     };
+
+
+    const authenticatedFetch = async (endpoint, method, body = null) => {
+        if (!CURRENT_USER || !CURRENT_USER.token) {
+            authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
+            authMessage.classList.remove('hidden');
+            authModal.classList.remove('hidden');
+            throw new Error("Authentication Required. Please log in.");
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CURRENT_USER.token}` 
+        };
+        const config = {
+            method: method,
+            headers: headers,
+        };
+        if (body) {
+            config.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(endpoint, config);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: `Server error: ${response.status}` }));
+            if (response.status === 401 || response.status === 403) {
+                 updateAuthStatus(null); 
+                 throw new Error(errorData.detail || "Session Expired. Please log in again.");
+            }
+            throw new Error(errorData.detail || `Server error: ${response.status}`);
+        }
+
+        return await response.json();
+    };
+
+
+    const analyzeIdea = (idea) => {
+        return authenticatedFetch(BACKEND_ENDPOINT, 'POST', { idea: idea });
+    };
+
+    const fetchHistory = async () => {
+        if (!CURRENT_USER) return;
+        historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-indigo-400">Loading history...</td></tr>`;
+
+        try {
+            const data = await authenticatedFetch(HISTORY_ENDPOINT, 'GET');
+            
+            if (data.history.length === 0) {
+                 historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No analysis history found.</td></tr>`;
+                 return;
+            }
+
+            historyTableBody.innerHTML = data.history.map(item => `
+                 <tr class="data-card hover:bg-gray-700 transition duration-150">
+                     <td class="px-6 py-3 text-sm text-gray-400 hover-lift">${item.date}</td>
+                     <td class="px-6 py-3 font-semibold text-indigo-300 hover-lift">${item.idea}</td>
+                     <td class="px-6 py-3 text-sm ${getColorClass(item.score)} font-bold hover-lift">${item.score}%</td>
+                 </tr>
+             `).join('');
+
+        } catch (error) {
+            console.error("History fetch error:", error);
+            if (!error.message.includes("Authentication Required")) {
+                historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-400">Error: ${error.message}</td></tr>`;
+            }
+        }
+    };
+
+
+    const updateAuthStatus = (user) => {
+        if (user) {
+            CURRENT_USER = user;
+            statusEl.textContent = `Logged In | Credits: ${user.credits || 0}`; 
+            statusEl.classList.replace('text-red-300', 'text-green-300');
+
+            authButtonsDiv.innerHTML = `
+                <button id="logout-btn" class="px-5 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-500 transition duration-200">Logout</button>
+            `;
+            historyBtn.classList.remove('hidden');
+            fetchHistory(); 
+        } else {
+            CURRENT_USER = null; 
+            statusEl.textContent = 'Logged Out';
+            statusEl.classList.replace('text-green-300', 'text-red-300');
+
+            authButtonsDiv.innerHTML = `
+                <button id="login-btn" class="px-5 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-500 transition duration-200">Login</button>
+                <button id="signup-btn" class="px-5 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-500 transition duration-200">Sign Up</button>
+            `;
+            historyBtn.classList.add('hidden');
+            document.getElementById('history-display').classList.add('hidden');
+        }
+    };
+
+    const handleAuth = async (isSignup, email, password) => {
+        const endpoint = isSignup ? `${DEPLOYED_URL}/auth/signup` : `${DEPLOYED_URL}/auth/login`;
+
+        authMessage.classList.add('hidden');
+        authSubmit.disabled = true;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                authMessage.textContent = data.detail || 'Authentication failed.';
+                authMessage.classList.remove('hidden');
+                return;
+            }
+
+            authModal.classList.add('hidden');
+
+            let userDetails;
+            if (isSignup) {
+                 userDetails = {
+                    user_id: data.id, 
+                    email: data.email, 
+                    credits: data.analysis_credits,
+                    token: null 
+                };
+                alert("Sign up successful! Please log in now."); 
+                formTitle.textContent = 'Login';
+                authModal.dataset.mode = 'login';
+                toggleLink.innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
+                
+            } else {
+                 userDetails = {
+                    user_id: data.user_id, 
+                    email: email, 
+                    credits: data.credits,
+                    token: data.access_token 
+                };
+                 updateAuthStatus(userDetails);
+            }
+            
+
+        } catch (error) {
+            authMessage.textContent = 'Network or Server error occurred.';
+            authMessage.classList.remove('hidden');
+            console.error("Auth Error:", error);
+        } finally {
+            authSubmit.disabled = false;
+        }
+    };
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const idea = ideaInput.value.trim();
+
+        if (!CURRENT_USER) {
+             authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
+             authMessage.classList.remove('hidden');
+             authModal.classList.remove('hidden');
+             return;
+        }
+
+        if (idea.length < 20) {
+            hintMessage.classList.remove('hidden');
+            return;
+        }
+        hintMessage.classList.add('hidden');
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span>**ANALYZING | Brainstorming...**</span> <div class="spinner border-t-4 border-white h-5 w-5 ml-3"></div>';
+        resultsDisplay.classList.add('hidden');
+        loadingIndicator.classList.remove('hidden');
+
+        startLoadingAnimation();
+
+        try {
+            const result = await analyzeIdea(idea); 
+
+            renderResults(result);
+            const newCredits = (CURRENT_USER.credits || 0) - 1; 
+            updateAuthStatus({ ...CURRENT_USER, credits: newCredits }); 
+
+        } catch (error) {
+            if (!error.message.includes("Authentication Required")) {
+                 alert(`Analysis failed. Error: ${error.message}`);
+            }
+            console.error("Analysis Failed:", error);
+        } finally {
+            stopLoadingAnimation();
+            loadingIndicator.classList.add('hidden');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<span>**RUN PREDICTION | Go Go Go!**</span> <span class="text-2xl ml-2">⚡</span>';
+        }
+    });
+
+    ideaInput.addEventListener('input', () => {
+        if (ideaInput.value.trim().length >= 20) {
+            hintMessage.classList.add('hidden');
+        } else if (ideaInput.value.trim().length > 0) {
+            hintMessage.classList.remove('hidden');
+        }
+    });
+
+    document.body.addEventListener('click', (e) => {
+        const modal = document.getElementById('auth-modal');
+        if (e.target.id === 'login-btn') {
+            formTitle.textContent = 'Login';
+            authMessage.classList.add('hidden');
+            authEmail.value = '';
+            authPassword.value = '';
+            toggleLink.innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
+            modal.classList.remove('hidden');
+            modal.dataset.mode = 'login';
+        } else if (e.target.id === 'signup-btn') {
+            formTitle.textContent = 'Sign Up';
+            authMessage.classList.add('hidden');
+            authEmail.value = '';
+            authPassword.value = '';
+            toggleLink.innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
+            modal.classList.remove('hidden');
+            modal.dataset.mode = 'signup';
+        } else if (e.target.id === 'logout-btn') {
+            updateAuthStatus(null); 
+            resultsDisplay.classList.add('hidden'); 
+        }
+    });
+
+    authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = authEmail.value;
+        const password = authPassword.value;
+        const mode = authModal.dataset.mode === 'signup'; 
+
+        handleAuth(mode, email, password);
+    });
+
+    toggleLink.addEventListener('click', () => {
+        const currentMode = authModal.dataset.mode;
+
+        if (currentMode === 'login') {
+            authModal.dataset.mode = 'signup';
+            document.getElementById('form-title').textContent = 'Sign Up';
+            document.getElementById('toggle-auth-mode').innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
+        } else {
+            authModal.dataset.mode = 'login';
+            document.getElementById('form-title').textContent = 'Login';
+            document.getElementById('toggle-auth-mode').innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
+        }
+        authEmail.value = '';
+        authPassword.value = '';
+        authMessage.classList.add('hidden');
+    });
+
+    authModal.addEventListener('click', (e) => {
+        if (e.target.id === 'auth-modal') {
+            e.target.classList.add('hidden');
+        }
+    });
+
+    historyBtn.addEventListener('click', () => {
+        document.getElementById('history-display').classList.toggle('hidden');
+    });
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        displayMessage(message, 'user');
+        chatInput.value = '';
+        chatSendButton.disabled = true;
+
+        const loadingMsg = document.createElement('div');
+        loadingMsg.id = 'ai-loading';
+        loadingMsg.classList.add('text-center', 'py-2', 'text-sm', 'italic', 'text-gray-400', 'mx-3');
+        loadingMsg.innerHTML = '<span id="head3">Assistant is typing...</span>';
+        chatLog.appendChild(loadingMsg);
+        scrollToBottom();
+
+        try {
+            const response = await fetch(CHAT_ENDPOINT, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ message: message })
+             });
+            
+            const data = await response.json();
+            loadingMsg.remove();
+            displayMessage(data.reply, 'ai');
+
+        } catch (error) {
+            const loader = document.getElementById('ai-loading');
+            if (loader) loader.remove();
+
+            const errorMessage = error.message.includes("/chat endpoint") ? error.message : "Error: Could not reach assistant. Please check server connection.";
+            displayMessage(errorMessage, 'ai');
+            console.error("Chat Error:", error);
+        } finally {
+            chatSendButton.disabled = false;
+        }
+    });
+
+    toggleChatButton.addEventListener('click', () => {
+        isChatOpen = !chatWindow.classList.toggle('hidden');
+        chatToggleIcon.textContent = isChatOpen ? '−' : '+';
+    });
+
+});
+    </script>
+</body>
+</html>

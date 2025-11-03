@@ -1,0 +1,19 @@
+# fastapi
+# fastapi
+# uvicorn
+# pydantic
+# google-genai
+# python-dotenv
+
+# pip install -r requirements.txt
+
+fastapi
+uvicorn[standard] 
+pydantic
+google-genai
+sqlalchemy
+databases[aiosqlite]
+bcrypt
+aiosqlite
+python-dotenv
+python-jose
