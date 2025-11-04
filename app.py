@@ -1,7 +1,9 @@
+# app.py
+
 # --- INSTALLATION INSTRUCTIONS (These are comments, not code) ---
 # 1. Activate Virtual Environment (venv)
 # 2. pip install fastapi uvicorn pydantic google-genai sqlalchemy databases bcrypt aiosqlite python-dotenv python-jose
-#3. Server run karne ke liye: uvicorn app:app --reload
+# 3. Server run karne ke liye: uvicorn app:app --reload
 # -----------------------------------------------------------------
 
 from fastapi import FastAPI, HTTPException, Depends, status, Security
@@ -28,7 +30,7 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 DUMMY_KEY = "AIzaSyCX4XNnhSmFbjK3dUv4B_1dd5qBcVIBds8"
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-super-secret-key-replace-this") 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 Days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 
 
 if not API_KEY or API_KEY == DUMMY_KEY:
     print("CRITICAL: GEMINI_API_KEY is missing or using placeholder. Analysis will fall back.")
@@ -37,6 +39,7 @@ if not API_KEY or API_KEY == DUMMY_KEY:
 GEMINI_CLIENT = None
 DAILY_CREDIT_LIMIT = 20
 
+# DATABASE SETUP
 DATABASE_URL = "sqlite:///./prophai.db" 
 database = Database(DATABASE_URL)
 metadata = MetaData()
@@ -68,10 +71,15 @@ engine = create_engine(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-
+# --- AUTH UTILITIES (OPTIMIZED FOR SPEED) ---
 def hash_password(password: str) -> str:
-    """Hashes the password using bcrypt."""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    """
+    Hashes the password using bcrypt. 
+    Rounds are set to 10 for SIGNIFICANTLY faster login/signup times.
+    (Compromise between speed and maximum security).
+    """
+    # 🛑 SPEED OPTIMIZATION HERE: rounds=10 for fast hashing
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=10)).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies the plain password against the hashed password."""
@@ -89,7 +97,7 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
+# --- BACKGROUND TASK ---
 async def refresh_daily_credits():
     """Resets analysis credits to DAILY_CREDIT_LIMIT for all users."""
     print("Running daily credit refresh check...")
@@ -161,8 +169,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
+# --- DEPENDENCIES & MODELS (Same as before) ---
 async def get_current_user(token: str = Security(oauth2_scheme)):
     """Decodes JWT and fetches the current active user from the database."""
     try:
@@ -195,7 +202,7 @@ async def get_current_user(token: str = Security(oauth2_scheme)):
         "analysis_credits": user['analysis_credits'] if user['analysis_credits'] is not None else DAILY_CREDIT_LIMIT, 
     }
 
-
+# --- Pydantic Models (Kept the same) ---
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -244,6 +251,7 @@ class AnalysisResult(BaseModel):
     competitiveLandscape: list[CompetitorDetail]
 
 def create_analysis_prompt(idea: str) -> str:
+    # Prompt remains the same
     return f"""
     You are ProphAI, the Strategic Innovation Core. Your primary task is to **first validate** whether the following input describes a software project, product, or clear technological innovation.
     Input Idea: "{idea}"
@@ -290,19 +298,21 @@ def create_analysis_prompt(idea: str) -> str:
     }}
     """
 
-
+# --- ENDPOINTS ---
 @app.get("/")
 def read_root():
     return {"status": "ProphAI Backend is Running", "endpoints": ["/analyze", "/chat", "/auth", "/history"], "version": "1.0"}
 
 
-@app.post("/auth/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@app.post("/auth/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def signup(user: UserIn):
+    """Sign up a new user and automatically generate a token for login (Fast)."""
     query = users.select().where(users.c.email == user.email)
     existing_user = await database.fetch_one(query)
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered.")
 
+    # Optimized and offloaded to thread pool for speed
     hashed_password = await asyncio.to_thread(hash_password, user.password)
     
     query = users.insert().values(email=user.email, hashed_password=hashed_password, analysis_credits=DAILY_CREDIT_LIMIT)
@@ -311,17 +321,27 @@ async def signup(user: UserIn):
     new_user_query = users.select().where(users.c.id == last_record_id)
     new_user = await database.fetch_one(new_user_query)
     
-    return dict(new_user)
+    # Auto-login
+    access_token = create_access_token(data={"sub": new_user['id']}) 
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_id": new_user['id'], 
+        "credits": new_user['analysis_credits']
+    }
 
 
 @app.post("/auth/login", response_model=Token)
 async def login_for_access_token(credentials: Login):
+    """Log in an existing user and return an access token (Fast)."""
     query = users.select().where(users.c.email == credentials.email)
     user = await database.fetch_one(query)
 
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password.", headers={"WWW-Authenticate": "Bearer"})
     
+    # Optimized and offloaded to thread pool for speed
     is_valid = await asyncio.to_thread(verify_password, credentials.password, user.hashed_password)
 
     if not is_valid:
@@ -339,6 +359,7 @@ async def login_for_access_token(credentials: Login):
 
 @app.post("/analyze", response_model=AnalysisResult) 
 async def analyze_project(request: IdeaRequest, current_user: dict = Depends(get_current_user)):
+    """Analyze the project idea using the Gemini API and save the result."""
     
     if current_user['analysis_credits'] <= 0:
         raise HTTPException(
@@ -368,15 +389,17 @@ async def analyze_project(request: IdeaRequest, current_user: dict = Depends(get
 
         prompt = create_analysis_prompt(request.idea)
 
+        # SPEED INCREASE: Offloading Gemini API call to a thread for non-blocking execution
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash', 
             contents=prompt,
             config={"response_mime_type": "application/json"}
         )
         
         analysis_data = json.loads(response.text)
         
+        # Data normalization
         if isinstance(analysis_data.get('ecosystemRisks'), list):
             analysis_data['ecosystemRisks'] = ' '.join(analysis_data['ecosystemRisks'])
         if isinstance(analysis_data.get('adoptionDrivers'), list):
@@ -426,6 +449,7 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
+    """Handle chat requests using the Gemini model."""
     chat_prompt = f"""
     You are a friendly and knowledgeable technical assistant. Answer the user's question concisely. 
     If the question is about a project or innovation analysis, gently redirect them to use the main ProphAI form.
@@ -437,6 +461,7 @@ async def chat_endpoint(request: ChatRequest):
         if GEMINI_CLIENT is None:
             raise Exception("Gemini Client not initialized (Missing API Key)")
 
+        # SPEED INCREASE: Offloading Gemini API call to a thread
         response = await asyncio.to_thread(
             client.models.generate_content,
             model='gemini-2.5-flash',

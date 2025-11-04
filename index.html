@@ -64,13 +64,13 @@ body {
     box-shadow: 0 0 25px rgba(99, 102, 241, 0.7);
 }
 
+/* --- TABLE PADDING ADJUSTMENT --- */
 #history-display tbody td,
 #results-display tbody td {
     vertical-align: top !important;
     padding-top: 1rem !important; 
     padding-bottom: 1rem !important;
 }
-
 
 main.main-content {
     width: calc(100% - 250px - 2.5%);
@@ -199,6 +199,37 @@ main form textarea::placeholder {
     transition: text-shadow 0.3s ease;
 }
 
+/* --- BUTTON ANIMATIONS (GLOBAL AND MODAL) --- */
+#auth-buttons button {
+    transition: all 0.2s ease-in-out;
+    transform: scale(1);
+}
+
+#auth-buttons button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+}
+
+#auth-buttons button:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 5px rgba(99, 102, 241, 0.2);
+}
+
+#auth-submit { /* Modal submit button */
+    transition: all 0.2s ease-in-out;
+    transform: scale(1);
+}
+
+#auth-submit:hover {
+    transform: scale(1.02);
+}
+
+#auth-submit:active {
+    transform: scale(0.98);
+}
+/* ------------------------------------------- */
+
+
 @media (max-width: 1024px) {
     #content-wrapper {
         flex-direction: column;
@@ -254,7 +285,6 @@ main form textarea::placeholder {
     color: #a5b4fc !important;
     transition: text-shadow 0.3s ease;
 }
-
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -307,7 +337,7 @@ main form textarea::placeholder {
                 >
                     <span id="head2">RUN (PREDICTION ON YOUR PRODUCT)</span> <span class="text-2xl ml-2"></span>
                 </button>
-                <p id="hint-message" class="mt-4 font-medium text-sm text-center hidden">  ~~ Please provide more details (at least 20 characters). ~~</p>
+                <p id="hint-message" class="mt-4 font-medium text-sm text-center hidden">  ~~ Please provide more details (at least 20 characters). ~~</p>
             </form>
 
             <div id="loading-indicator" class="mt-16 text-center hidden">
@@ -326,7 +356,7 @@ main form textarea::placeholder {
                         </tr>
                     </thead>
                     <tbody id="history-table-body" class="divide-y divide-gray-800">
-                         </tbody>
+                            </tbody>
                 </table>
             </div>
             <button id="toggle-history-btn" class="mt-8 px-6 py-3 bg-gray-700 text-white font-semibold rounded hover:bg-gray-600 transition duration-200 hidden">View History</button>
@@ -376,541 +406,561 @@ main form textarea::placeholder {
                 <input type="email" id="auth-email" placeholder="Email" class="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white" required>
                 <input type="password" id="auth-password" placeholder="Password" class="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white" required>
                 <p id="auth-message" class="text-red-300 text-sm hidden"></p>
-                <button type="submit" id="auth-submit" class="w-full py-3 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-500 transition duration-200">Submit</button>
+                <button type="submit" id="auth-submit" 
+                    class="w-full py-3 bg-indigo-600 text-white font-bold rounded 
+                           hover:bg-indigo-500 transition duration-200 
+                           transform hover:scale-[1.02] active:scale-[0.98] 
+                           flex items-center justify-center space-x-2">Submit</button>
             </form>
             <p class="mt-4 text-sm text-gray-400 text-center cursor-pointer" id="toggle-auth-mode">Already have an account? <span class="text-indigo-400 hover:underline" >Login</span></p>
         </div>
-    </div><script>
+    </div>
+<script>
+    /*
+     * NOTE: For the auto-login after Sign Up feature to work, 
+     * the FastAPI backend (app.py) MUST be updated to return a JWT access token 
+     * on a successful signup, matching the structure of the /auth/login response.
+     */
     document.addEventListener('DOMContentLoaded', () => {
+        const DEPLOYED_URL = "https://prophai.onrender.com";
+        //const DEPLOYED_URL = "http://127.0.0.1:8000";
+        const BACKEND_ENDPOINT = `${DEPLOYED_URL}/analyze`;
+        const CHAT_ENDPOINT = `${DEPLOYED_URL}/chat`;
+        const HISTORY_ENDPOINT = `${DEPLOYED_URL}/history`;
 
-     const DEPLOYED_URL = "https://prophai.onrender.com";
-     const BACKEND_ENDPOINT = `${DEPLOYED_URL}/analyze`;
-     const CHAT_ENDPOINT = `${DEPLOYED_URL}/chat`;
-     const HISTORY_ENDPOINT = `${DEPLOYED_URL}/history`;
+        let CURRENT_USER = null;
+        let isChatOpen = true;
 
-     let CURRENT_USER = null;
-     let isChatOpen = true;
+        const form = document.getElementById('analysis-form');
+        const ideaInput = document.getElementById('idea-input');
+        const submitButton = document.getElementById('submit-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const resultsDisplay = document.getElementById('results-display');
+        const hintMessage = document.getElementById('hint-message');
+        const loadingMessage = document.getElementById('loading-message');
+        const historyTableBody = document.getElementById('history-table-body');
 
-     const form = document.getElementById('analysis-form');
-     const ideaInput = document.getElementById('idea-input');
-     const submitButton = document.getElementById('submit-button');
-     const loadingIndicator = document.getElementById('loading-indicator');
-     const resultsDisplay = document.getElementById('results-display');
-     const hintMessage = document.getElementById('hint-message');
-     const loadingMessage = document.getElementById('loading-message');
-     const historyTableBody = document.getElementById('history-table-body');
+        const authModal = document.getElementById('auth-modal');
+        const formTitle = document.getElementById('form-title');
+        const toggleLink = document.getElementById('toggle-auth-mode');
+        const authForm = document.getElementById('auth-form');
+        const authEmail = document.getElementById('auth-email');
+        const authPassword = document.getElementById('auth-password');
+        const authMessage = document.getElementById('auth-message');
+        const authSubmit = document.getElementById('auth-submit');
+        const statusEl = document.getElementById('auth-status');
+        const authButtonsDiv = document.getElementById('auth-buttons');
+        const historyBtn = document.getElementById('toggle-history-btn');
 
-     const authModal = document.getElementById('auth-modal');
-     const formTitle = document.getElementById('form-title');
-     const toggleLink = document.getElementById('toggle-auth-mode');
-     const authForm = document.getElementById('auth-form');
-     const authEmail = document.getElementById('auth-email');
-     const authPassword = document.getElementById('auth-password');
-     const authMessage = document.getElementById('auth-message');
-     const authSubmit = document.getElementById('auth-submit');
-     const statusEl = document.getElementById('auth-status');
-     const authButtonsDiv = document.getElementById('auth-buttons');
-     const historyBtn = document.getElementById('toggle-history-btn');
-
-     const chatForm = document.getElementById('chat-form');
-     const chatInput = document.getElementById('chat-input');
-     const chatLog = document.getElementById('chat-log');
-     const chatSendButton = document.getElementById('chat-send-button');
-     const chatWindow = document.getElementById('chat-window');
-     const toggleChatButton = document.getElementById('toggle-chat-button');
-     const chatToggleIcon = document.getElementById('chat-toggle-icon');
-
-
-     const loadingExpressions = [
-         "Analyzing Data... :-|",
-         "Crunching Numbers... :D",
-         "Predicting Future... :O",
-         "Checking Viability... ;-)",
-         "Almost Done... :P"
-     ];
-     let expressionIndex = 0;
-     let loadingInterval;
-     const startLoadingAnimation = () => {
-         loadingMessage.textContent = loadingExpressions[expressionIndex];
-         loadingInterval = setInterval(() => {
-             expressionIndex = (expressionIndex + 1) % loadingExpressions.length;
-             loadingMessage.textContent = loadingExpressions[expressionIndex];
-         }, 750);
-     };
-     const stopLoadingAnimation = () => {
-         clearInterval(loadingInterval);
-         loadingMessage.textContent = "";
-     };
-
-     const getColorClass = (score) => {
-         if (score >= 80) return 'text-green-300';
-         if (score >= 60) return 'text-yellow-300';
-         return 'text-red-300';
-     };
-
-     const scrollToBottom = (element = chatLog) => {
-         element.scrollTop = element.scrollHeight;
-     };
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatLog = document.getElementById('chat-log');
+        const chatSendButton = document.getElementById('chat-send-button');
+        const chatWindow = document.getElementById('chat-window');
+        const toggleChatButton = document.getElementById('toggle-chat-button');
+        const chatToggleIcon = document.getElementById('chat-toggle-icon');
 
 
-     const renderTechStack = (stack) => {
-         return stack.map(item => `
-             <tr class="data-card hover:bg-gray-700 transition duration-150">
-                 <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.component}</td>
-                 <td class="px-6 py-4 text-white font-bold hover-lift">${item.technology}</td>
-                 <td class="px-6 py-4 text-sm text-gray-400 hover-lift">${item.justification}</td>
-             </tr>
-         `).join('');
-     };
-
-     const renderPhases = (phases) => {
-         return phases.map(item => `
-             <div class="p-5 data-card rounded-xl border-l-4 border-indigo-500 hover:shadow-xl transition duration-300">
-                 <p class="text-lg font-extrabold text-indigo-300 hover-lift">${item.phase}</p>
-                 <p class="text-sm font-semibold text-gray-400 mt-2">Duration: <span class="text-white hover-lift">${item.duration}</span></p>
-                 <p class="text-sm text-gray-500 mt-1 hover-lift">${item.focus}</p>
-             </div>
-         `).join('');
-     };
-
-     const renderCompetition = (competitors) => {
-         return competitors.map(item => `
-             <tr class="data-card hover:bg-gray-700 transition duration-150">
-                 <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.competitor}</td>
-                 <td class="px-6 py-4 text-sm text-gray-500 hover-lift">${item.similarFeatures}</td>
-                 <td class="px-6 py-4 text-white font-bold hover-lift">${item.differentiation}</td>
-             </tr>
-         `).join('');
-     };
-
-     const renderResults = (result) => {
-         const totalScore = Math.round((result.noveltyScore + result.trendsScore + result.viralityPotential) / 3);
-         const totalColor = getColorClass(totalScore);
-         const noveltyColor = getColorClass(result.noveltyScore);
-         const trendsColor = getColorClass(result.trendsScore);
-         const viralityColor = getColorClass(result.viralityPotential);
-
-         const isValidationFailed = totalScore === 0;
-
-         resultsDisplay.innerHTML = `
-             <h2 class="text-4xl font-extrabold text-white mb-8 border-b-4 border-indigo-500 pb-4 hover-lift">
-                 <span class="text-green-300 mr-3">✓</span> **Prediction Complete: Your Future Blueprint**
-             </h2>
-
-             <div class="bg-gray-900/70 text-white p-10 rounded-2xl mb-12 flex flex-col md:flex-row justify-between items-center shadow-2xl border border-indigo-600 data-card">
-                 <div>
-                     <p class="text-xl font-medium opacity-80 uppercase tracking-wider text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Total ProphAI Innovation Score</p>
-                     <p class="text-7xl font-extrabold mt-3 score-text ${totalColor} hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${totalScore}<span class="text-4xl">%</span></p>
-                 </div>
-                 <div class="md:text-right mt-6 md:mt-0">
-                     <p class="text-xl font-semibold opacity-90 text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Projected Net Worth Potential (3 Years):</p>
-                     <p class="text-4xl font-extrabold mt-2 text-yellow-300 hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${result.netWorthEstimate}</p>
-                     <p class="mt-2 text-base opacity-70 text-gray-400 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Long-Term Viability: <span class="${isValidationFailed ? 'validation-failed-value' : ''}">${result.longTermViability}</span></p>
-                 </div>
-             </div>
-
-             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                 <div class="p-6 data-card rounded-xl border-t-4 ${noveltyColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
-                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">INNOVATION SCORE</p>
-                     <p class="text-5xl font-extrabold mt-3 score-text ${noveltyColor} hover-lift">${result.noveltyScore}<span class="text-2xl">%</span></p>
-                 </div>
-                 <div class="p-6 data-card rounded-xl border-t-4 ${trendsColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
-                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">MARKET TRENDS FIT</p>
-                     <p class="text-5xl font-extrabold mt-3 score-text ${trendsColor} hover-lift">${result.trendsScore}<span class="text-2xl">%</span></p>
-                 </div>
-                 <div class="p-6 data-card rounded-xl border-t-4 ${viralityColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
-                     <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">VIRALITY POTENTIAL</p>
-                     <p class="text-5xl font-extrabold mt-3 score-text ${viralityColor} hover-lift">${result.viralityPotential}<span class="text-2xl">%</span></p>
-                 </div>
-             </div>
-
-             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Optimal Tech Stack Recommendation |</h3>
-             <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
-                 <table class="min-w-full divide-y divide-gray-700">
-                     <thead class="bg-gray-800">
-                         <tr>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Component</th>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Technology</th>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Justification</th>
-                         </tr>
-                     </thead>
-                     <tbody class="divide-y divide-gray-800">
-                         ${renderTechStack(result.techStack)}
-                     </tbody>
-                 </table>
-             </div>
-
-             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 mt-10 hover-lift">Competitive Landscape & Strategic Moat |</h3>
-             <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
-                 <table class="min-w-full divide-y divide-gray-700">
-                     <thead class="bg-gray-800">
-                         <tr>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Competitor / Existing Solution</th>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Similar Features / Overlap</th>
-                             <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Your Key Differentiation</th>
-                         </tr>
-                     </thead>
-                     <tbody class="divide-y divide-gray-800">
-                         ${renderCompetition(result.competitiveLandscape)}
-                     </tbody>
-                 </table>
-             </div>
-
-             <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Project Execution Roadmap |</h3>
-             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                 ${renderPhases(result.projectPhases)}
-             </div>
-
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div class="p-8 data-card rounded-2xl border-l-4 border-indigo-500 shadow-md">
-                     <p class="text-xl font-bold text-white mb-3 hover-lift">Uniqueness & Ecosystem Fit</p>
-                     <p class="text-gray-300 mb-4 text-base hover-lift">${result.uniquenessSummary}</p>
-                     <p class="text-base font-semibold text-red-300 mt-4 border-t border-gray-700 pt-3 hover-lift">Key Risks: <span class="font-normal text-white">${result.ecosystemRisks}</span></p>
-                     <p class="text-base font-semibold text-green-300 mt-2 hover-lift">Adoption Drivers: <span class="font-normal text-white">${result.adoptionDrivers}</span></p>
-                 </div>
-
-                 <div class="p-8 bg-gray-900/70 rounded-2xl border-t-4 border-indigo-600 shadow-md border border-indigo-700 data-card">
-                     <p class="text-xl font-bold text-white mb-4 flex items-center hover-lift">Your Actionable Next Steps</p>
-                     <ul class="list-disc list-outside ml-5 space-y-3 text-gray-300 text-base">
-                         ${result.actionableNextSteps.map(step => `<li class="pl-1 hover-lift">${step}</li>`).join('')}
-                     </ul>
-
-                     <div class="mt-6 pt-4 border-t border-gray-700">
-                         <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mb-2 hover-lift">Technical Appeal:</p>
-                         <p class="text-base font-bold text-white hover-lift">${result.techAppeal}</p>
-                         <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mt-4 mb-3 hover-lift">Key Focus Keywords:</p>
-                         <div class="flex flex-wrap gap-2">
-                             ${result.keywords.map(keyword => `<span class="px-3 py-1 bg-indigo-700 text-white text-sm font-medium rounded-full hover:bg-indigo-500 transition duration-150 hover-lift">${keyword}</span>`).join('')}
-                         </div>
-                     </div>
-                 </div>
-             </div>
-         `;
-         resultsDisplay.classList.remove('hidden');
-     };
-
-     const displayMessage = (message, sender) => {
-         const msgDiv = document.createElement('div');
-         msgDiv.classList.add('flex', 'mx-3');
-
-         if (sender === 'user') {
-             msgDiv.classList.add('justify-end');
-             msgDiv.innerHTML = `<div class="bg-indigo-600 text-white p-3 rounded-t-xl rounded-bl-xl max-w-xs text-sm shadow-md">${message}</div>`;
-         } else {
-             msgDiv.classList.add('justify-start');
-             msgDiv.innerHTML = `<div class="bg-gray-800 text-white p-3 rounded-t-xl rounded-br-xl max-w-xs text-sm shadow-md whitespace-pre-wrap">${message}</div>`;
-         }
-         chatLog.appendChild(msgDiv);
-         scrollToBottom();
-     };
-
-
-    const authenticatedFetch = async (endpoint, method, body = null) => {
-        if (!CURRENT_USER || !CURRENT_USER.token) {
-            authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
-            authMessage.classList.remove('hidden');
-            authModal.classList.remove('hidden');
-            throw new Error("Authentication Required. Please log in.");
-        }
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${CURRENT_USER.token}` 
+        const loadingExpressions = [
+            "Analyzing Data... :-|",
+            "Crunching Numbers... :D",
+            "Predicting Future... :O",
+            "Checking Viability... ;-)",
+            "Almost Done... :P"
+        ];
+        let expressionIndex = 0;
+        let loadingInterval;
+        const startLoadingAnimation = () => {
+            loadingMessage.textContent = loadingExpressions[expressionIndex];
+            loadingInterval = setInterval(() => {
+                expressionIndex = (expressionIndex + 1) % loadingExpressions.length;
+                loadingMessage.textContent = loadingExpressions[expressionIndex];
+            }, 750);
         };
-        const config = {
-            method: method,
-            headers: headers,
+        const stopLoadingAnimation = () => {
+            clearInterval(loadingInterval);
+            loadingMessage.textContent = "";
         };
-        if (body) {
-            config.body = JSON.stringify(body);
-        }
 
-        const response = await fetch(endpoint, config);
+        const getColorClass = (score) => {
+            if (score >= 80) return 'text-green-300';
+            if (score >= 60) return 'text-yellow-300';
+            return 'text-red-300';
+        };
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: `Server error: ${response.status}` }));
-            if (response.status === 401 || response.status === 403) {
-                 updateAuthStatus(null); 
-                 throw new Error(errorData.detail || "Session Expired. Please log in again.");
-            }
-            throw new Error(errorData.detail || `Server error: ${response.status}`);
-        }
-
-        return await response.json();
-    };
+        const scrollToBottom = (element = chatLog) => {
+            element.scrollTop = element.scrollHeight;
+        };
 
 
-    const analyzeIdea = (idea) => {
-        return authenticatedFetch(BACKEND_ENDPOINT, 'POST', { idea: idea });
-    };
+        const renderTechStack = (stack) => {
+            return stack.map(item => `
+                <tr class="data-card hover:bg-gray-700 transition duration-150">
+                    <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.component}</td>
+                    <td class="px-6 py-4 text-white font-bold hover-lift">${item.technology}</td>
+                    <td class="px-6 py-4 text-sm text-gray-400 hover-lift">${item.justification}</td>
+                </tr>
+            `).join('');
+        };
 
-    const fetchHistory = async () => {
-        if (!CURRENT_USER) return;
-        historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-indigo-400">Loading history...</td></tr>`;
+        const renderPhases = (phases) => {
+            return phases.map(item => `
+                <div class="p-5 data-card rounded-xl border-l-4 border-indigo-500 hover:shadow-xl transition duration-300">
+                    <p class="text-lg font-extrabold text-indigo-300 hover-lift">${item.phase}</p>
+                    <p class="text-sm font-semibold text-gray-400 mt-2">Duration: <span class="text-white hover-lift">${item.duration}</span></p>
+                    <p class="text-sm text-gray-500 mt-1 hover-lift">${item.focus}</p>
+                </div>
+            `).join('');
+        };
 
-        try {
-            const data = await authenticatedFetch(HISTORY_ENDPOINT, 'GET');
-            
-            if (data.history.length === 0) {
-                 historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No analysis history found.</td></tr>`;
-                 return;
-            }
+        const renderCompetition = (competitors) => {
+            return competitors.map(item => `
+                <tr class="data-card hover:bg-gray-700 transition duration-150">
+                    <td class="px-6 py-4 font-semibold text-indigo-300 hover-lift">${item.competitor}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 hover-lift">${item.similarFeatures}</td>
+                    <td class="px-6 py-4 text-white font-bold hover-lift">${item.differentiation}</td>
+                </tr>
+            `).join('');
+        };
 
-            historyTableBody.innerHTML = data.history.map(item => `
-                 <tr class="data-card hover:bg-gray-700 transition duration-150">
-                     <td class="px-6 py-3 text-sm text-gray-400 hover-lift">${item.date}</td>
-                     <td class="px-6 py-3 font-semibold text-indigo-300 hover-lift">${item.idea}</td>
-                     <td class="px-6 py-3 text-sm ${getColorClass(item.score)} font-bold hover-lift">${item.score}%</td>
-                 </tr>
-             `).join('');
+        const renderResults = (result) => {
+            const totalScore = Math.round((result.noveltyScore + result.trendsScore + result.viralityPotential) / 3);
+            const totalColor = getColorClass(totalScore);
+            const noveltyColor = getColorClass(result.noveltyScore);
+            const trendsColor = getColorClass(result.trendsScore);
+            const viralityColor = getColorClass(result.viralityPotential);
 
-        } catch (error) {
-            console.error("History fetch error:", error);
-            if (!error.message.includes("Authentication Required")) {
-                historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-400">Error: ${error.message}</td></tr>`;
-            }
-        }
-    };
+            const isValidationFailed = totalScore === 0;
 
+            resultsDisplay.innerHTML = `
+                <h2 class="text-4xl font-extrabold text-white mb-8 border-b-4 border-indigo-500 pb-4 hover-lift">
+                    <span class="text-green-300 mr-3">✓</span> **Prediction Complete: Your Future Blueprint**
+                </h2>
 
-    const updateAuthStatus = (user) => {
-        if (user) {
-            CURRENT_USER = user;
-            statusEl.textContent = `Logged In | Credits: ${user.credits || 0}`; 
-            statusEl.classList.replace('text-red-300', 'text-green-300');
+                <div class="bg-gray-900/70 text-white p-10 rounded-2xl mb-12 flex flex-col md:flex-row justify-between items-center shadow-2xl border border-indigo-600 data-card">
+                    <div>
+                        <p class="text-xl font-medium opacity-80 uppercase tracking-wider text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Total ProphAI Innovation Score</p>
+                        <p class="text-7xl font-extrabold mt-3 score-text ${totalColor} hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${totalScore}<span class="text-4xl">%</span></p>
+                    </div>
+                    <div class="md:text-right mt-6 md:mt-0">
+                        <p class="text-xl font-semibold opacity-90 text-indigo-300 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Projected Net Worth Potential (3 Years):</p>
+                        <p class="text-4xl font-extrabold mt-2 text-yellow-300 hover-lift ${isValidationFailed ? 'validation-failed-value' : ''}">${result.netWorthEstimate}</p>
+                        <p class="mt-2 text-base opacity-70 text-gray-400 hover-lift ${isValidationFailed ? 'validation-failed-text' : ''}">Long-Term Viability: <span class="${isValidationFailed ? 'validation-failed-value' : ''}">${result.longTermViability}</span></p>
+                    </div>
+                </div>
 
-            authButtonsDiv.innerHTML = `
-                <button id="logout-btn" class="px-5 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-500 transition duration-200">Logout</button>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                    <div class="p-6 data-card rounded-xl border-t-4 ${noveltyColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                        <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">INNOVATION SCORE</p>
+                        <p class="text-5xl font-extrabold mt-3 score-text ${noveltyColor} hover-lift">${result.noveltyScore}<span class="text-2xl">%</span></p>
+                    </div>
+                    <div class="p-6 data-card rounded-xl border-t-4 ${trendsColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                        <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">MARKET TRENDS FIT</p>
+                        <p class="text-5xl font-extrabold mt-3 score-text ${trendsColor} hover-lift">${result.trendsScore}<span class="text-2xl">%</span></p>
+                    </div>
+                    <div class="p-6 data-card rounded-xl border-t-4 ${viralityColor.replace('text-', 'border-')} shadow-lg hover:shadow-xl score-box">
+                        <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider hover-lift">VIRALITY POTENTIAL</p>
+                        <p class="text-5xl font-extrabold mt-3 score-text ${viralityColor} hover-lift">${result.viralityPotential}<span class="text-2xl">%</span></p>
+                    </div>
+                </div>
+
+                <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Optimal Tech Stack Recommendation |</h3>
+                <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Component</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Technology</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Justification</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            ${renderTechStack(result.techStack)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 mt-10 hover-lift">Competitive Landscape & Strategic Moat |</h3>
+                <div class="overflow-x-auto mb-16 shadow-lg rounded-xl border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Competitor / Existing Solution</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Similar Features / Overlap</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Your Key Differentiation</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            ${renderCompetition(result.competitiveLandscape)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-3xl font-bold text-white mb-6 border-b pb-3 hover-lift">Project Execution Roadmap |</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                    ${renderPhases(result.projectPhases)}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="p-8 data-card rounded-2xl border-l-4 border-indigo-500 shadow-md">
+                        <p class="text-xl font-bold text-white mb-3 hover-lift">Uniqueness & Ecosystem Fit</p>
+                        <p class="text-gray-300 mb-4 text-base hover-lift">${result.uniquenessSummary}</p>
+                        <p class="text-base font-semibold text-red-300 mt-4 border-t border-gray-700 pt-3 hover-lift">Key Risks: <span class="font-normal text-white">${result.ecosystemRisks}</span></p>
+                        <p class="text-base font-semibold text-green-300 mt-2 hover-lift">Adoption Drivers: <span class="font-normal text-white">${result.adoptionDrivers}</span></p>
+                    </div>
+
+                    <div class="p-8 bg-gray-900/70 rounded-2xl border-t-4 border-indigo-600 shadow-md border border-indigo-700 data-card">
+                        <p class="text-xl font-bold text-white mb-4 flex items-center hover-lift">Your Actionable Next Steps</p>
+                        <ul class="list-disc list-outside ml-5 space-y-3 text-gray-300 text-base">
+                            ${result.actionableNextSteps.map(step => `<li class="pl-1 hover-lift">${step}</li>`).join('')}
+                        </ul>
+
+                        <div class="mt-6 pt-4 border-t border-gray-700">
+                            <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mb-2 hover-lift">Technical Appeal:</p>
+                            <p class="text-base font-bold text-white hover-lift">${result.techAppeal}</p>
+                            <p class="text-sm font-semibold text-indigo-300 uppercase tracking-wider mt-4 mb-3 hover-lift">Key Focus Keywords:</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${result.keywords.map(keyword => `<span class="px-3 py-1 bg-indigo-700 text-white text-sm font-medium rounded-full hover:bg-indigo-500 transition duration-150 hover-lift">${keyword}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
-            historyBtn.classList.remove('hidden');
-            fetchHistory(); 
-        } else {
-            CURRENT_USER = null; 
-            statusEl.textContent = 'Logged Out';
-            statusEl.classList.replace('text-green-300', 'text-red-300');
+            resultsDisplay.classList.remove('hidden');
+        };
 
-            authButtonsDiv.innerHTML = `
-                <button id="login-btn" class="px-5 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-500 transition duration-200">Login</button>
-                <button id="signup-btn" class="px-5 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-500 transition duration-200">Sign Up</button>
-            `;
-            historyBtn.classList.add('hidden');
-            document.getElementById('history-display').classList.add('hidden');
-        }
-    };
+        const displayMessage = (message, sender) => {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('flex', 'mx-3');
 
-    const handleAuth = async (isSignup, email, password) => {
-        const endpoint = isSignup ? `${DEPLOYED_URL}/auth/signup` : `${DEPLOYED_URL}/auth/login`;
+            if (sender === 'user') {
+                msgDiv.classList.add('justify-end');
+                msgDiv.innerHTML = `<div class="bg-indigo-600 text-white p-3 rounded-t-xl rounded-bl-xl max-w-xs text-sm shadow-md">${message}</div>`;
+            } else {
+                msgDiv.classList.add('justify-start');
+                msgDiv.innerHTML = `<div class="bg-gray-800 text-white p-3 rounded-t-xl rounded-br-xl max-w-xs text-sm shadow-md whitespace-pre-wrap">${message}</div>`;
+            }
+            chatLog.appendChild(msgDiv);
+            scrollToBottom();
+        };
 
-        authMessage.classList.add('hidden');
-        authSubmit.disabled = true;
 
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+        const authenticatedFetch = async (endpoint, method, body = null) => {
+            if (!CURRENT_USER || !CURRENT_USER.token) {
+                authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
+                authMessage.classList.remove('hidden');
+                authModal.classList.remove('hidden');
+                throw new Error("Authentication Required. Please log in.");
+            }
 
-            const data = await response.json();
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${CURRENT_USER.token}` 
+            };
+            const config = {
+                method: method,
+                headers: headers,
+            };
+            if (body) {
+                config.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(endpoint, config);
 
             if (!response.ok) {
-                authMessage.textContent = data.detail || 'Authentication failed.';
+                const errorData = await response.json().catch(() => ({ detail: `Server error: ${response.status}` }));
+                if (response.status === 401 || response.status === 403) {
+                    updateAuthStatus(null); 
+                    throw new Error(errorData.detail || "Session Expired. Please log in again.");
+                }
+                throw new Error(errorData.detail || `Server error: ${response.status}`);
+            }
+
+            return await response.json();
+        };
+
+
+        const analyzeIdea = (idea) => {
+            return authenticatedFetch(BACKEND_ENDPOINT, 'POST', { idea: idea });
+        };
+
+        const fetchHistory = async () => {
+            if (!CURRENT_USER) return;
+            historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-indigo-400">Loading history...</td></tr>`;
+
+            try {
+                const data = await authenticatedFetch(HISTORY_ENDPOINT, 'GET');
+                
+                if (data.history.length === 0) {
+                    historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No analysis history found.</td></tr>`;
+                    return;
+                }
+
+                historyTableBody.innerHTML = data.history.map(item => `
+                    <tr class="data-card hover:bg-gray-700 transition duration-150">
+                        <td class="px-6 py-3 text-sm text-gray-400 hover-lift">${item.date}</td>
+                        <td class="px-6 py-3 font-semibold text-indigo-300 hover-lift">${item.idea}</td>
+                        <td class="px-6 py-3 text-sm ${getColorClass(item.score)} font-bold hover-lift">${item.score}%</td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error("History fetch error:", error);
+                if (!error.message.includes("Authentication Required")) {
+                    historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-400">Error: ${error.message}</td></tr>`;
+                }
+            }
+        };
+
+
+        const updateAuthStatus = (user) => {
+            if (user) {
+                CURRENT_USER = user;
+                statusEl.textContent = `Logged In | Credits: ${user.credits || 0}`; 
+                statusEl.classList.replace('text-red-300', 'text-green-300');
+
+                // Update auth buttons to Logout button
+                authButtonsDiv.innerHTML = `
+                    <button id="logout-btn" class="px-5 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-500 transition duration-200 transform hover:scale-[1.05] active:scale-[0.95]">Logout</button>
+                `;
+                historyBtn.classList.remove('hidden');
+                fetchHistory(); 
+            } else {
+                CURRENT_USER = null; 
+                statusEl.textContent = 'Logged Out';
+                statusEl.classList.replace('text-green-300', 'text-red-300');
+
+                // Update auth buttons to Login/Sign Up buttons
+                authButtonsDiv.innerHTML = `
+                    <button id="login-btn" class="px-5 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-500 transition duration-200 transform hover:scale-[1.05] active:scale-[0.95]">Login</button>
+                    <button id="signup-btn" class="px-5 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-500 transition duration-200 transform hover:scale-[1.05] active:scale-[0.95]">Sign Up</button>
+                `;
+                historyBtn.classList.add('hidden');
+                document.getElementById('history-display').classList.add('hidden');
+            }
+        };
+
+        const handleAuth = async (isSignup, email, password) => {
+            const endpoint = isSignup ? `${DEPLOYED_URL}/auth/signup` : `${DEPLOYED_URL}/auth/login`;
+
+            authMessage.classList.add('hidden');
+            authSubmit.disabled = true;
+
+            const originalButtonText = 'Submit'; 
+            authSubmit.innerHTML = `<div class="spinner rounded-full h-5 w-5 border-4 border-white border-t-indigo-500 mr-2"></div><span>Processing...</span>`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    authMessage.textContent = data.detail || 'Authentication failed.';
+                    authMessage.classList.remove('hidden');
+                    return;
+                }
+
+                authModal.classList.add('hidden');
+
+                let userDetails;
+                
+                if (isSignup) {
+                    // **MODIFIED LOGIC: Auto-Login After Successful Sign Up**
+                    userDetails = {
+                        user_id: data.user_id || data.id, 
+                        email: email, 
+                        credits: data.credits || 20, // Assuming 20 credits on new signup
+                        token: data.access_token 
+                    };
+                    alert("Sign up successful! Welcome."); 
+                    updateAuthStatus(userDetails); // Auto-login
+                } else {
+                    // Existing Login Logic
+                    userDetails = {
+                        user_id: data.user_id, 
+                        email: email, 
+                        credits: data.credits,
+                        token: data.access_token 
+                    };
+                    updateAuthStatus(userDetails);
+                }
+                
+
+            } catch (error) {
+                authMessage.textContent = 'Network or Server error occurred.';
                 authMessage.classList.remove('hidden');
+                console.error("Auth Error:", error);
+            } finally {
+                authSubmit.disabled = false;
+                authSubmit.textContent = originalButtonText;
+            }
+        };
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idea = ideaInput.value.trim();
+
+            if (!CURRENT_USER) {
+                authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
+                authMessage.classList.remove('hidden');
+                authModal.classList.remove('hidden');
                 return;
             }
 
-            authModal.classList.add('hidden');
-
-            let userDetails;
-            if (isSignup) {
-                 userDetails = {
-                    user_id: data.id, 
-                    email: data.email, 
-                    credits: data.analysis_credits,
-                    token: null 
-                };
-                alert("Sign up successful! Please log in now."); 
-                formTitle.textContent = 'Login';
-                authModal.dataset.mode = 'login';
-                toggleLink.innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
-                
-            } else {
-                 userDetails = {
-                    user_id: data.user_id, 
-                    email: email, 
-                    credits: data.credits,
-                    token: data.access_token 
-                };
-                 updateAuthStatus(userDetails);
+            if (idea.length < 20) {
+                hintMessage.classList.remove('hidden');
+                return;
             }
-            
-
-        } catch (error) {
-            authMessage.textContent = 'Network or Server error occurred.';
-            authMessage.classList.remove('hidden');
-            console.error("Auth Error:", error);
-        } finally {
-            authSubmit.disabled = false;
-        }
-    };
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const idea = ideaInput.value.trim();
-
-        if (!CURRENT_USER) {
-             authMessage.textContent = 'Please Login or Sign Up to run the analysis.';
-             authMessage.classList.remove('hidden');
-             authModal.classList.remove('hidden');
-             return;
-        }
-
-        if (idea.length < 20) {
-            hintMessage.classList.remove('hidden');
-            return;
-        }
-        hintMessage.classList.add('hidden');
-
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<span>**ANALYZING | Brainstorming...**</span> <div class="spinner border-t-4 border-white h-5 w-5 ml-3"></div>';
-        resultsDisplay.classList.add('hidden');
-        loadingIndicator.classList.remove('hidden');
-
-        startLoadingAnimation();
-
-        try {
-            const result = await analyzeIdea(idea); 
-
-            renderResults(result);
-            const newCredits = (CURRENT_USER.credits || 0) - 1; 
-            updateAuthStatus({ ...CURRENT_USER, credits: newCredits }); 
-
-        } catch (error) {
-            if (!error.message.includes("Authentication Required")) {
-                 alert(`Analysis failed. Error: ${error.message}`);
-            }
-            console.error("Analysis Failed:", error);
-        } finally {
-            stopLoadingAnimation();
-            loadingIndicator.classList.add('hidden');
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<span>**RUN PREDICTION | Go Go Go!**</span> <span class="text-2xl ml-2">⚡</span>';
-        }
-    });
-
-    ideaInput.addEventListener('input', () => {
-        if (ideaInput.value.trim().length >= 20) {
             hintMessage.classList.add('hidden');
-        } else if (ideaInput.value.trim().length > 0) {
-            hintMessage.classList.remove('hidden');
-        }
-    });
 
-    document.body.addEventListener('click', (e) => {
-        const modal = document.getElementById('auth-modal');
-        if (e.target.id === 'login-btn') {
-            formTitle.textContent = 'Login';
-            authMessage.classList.add('hidden');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span>**ANALYZING | Brainstorming...**</span> <div class="spinner border-t-4 border-white h-5 w-5 ml-3"></div>';
+            resultsDisplay.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+
+            startLoadingAnimation();
+
+            try {
+                const result = await analyzeIdea(idea); 
+
+                renderResults(result);
+                const newCredits = (CURRENT_USER.credits || 0) - 1; 
+                updateAuthStatus({ ...CURRENT_USER, credits: newCredits }); 
+
+            } catch (error) {
+                if (!error.message.includes("Authentication Required")) {
+                    alert(`Analysis failed. Error: ${error.message}`);
+                }
+                console.error("Analysis Failed:", error);
+            } finally {
+                stopLoadingAnimation();
+                loadingIndicator.classList.add('hidden');
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<span>**RUN PREDICTION | Go Go Go!**</span> <span class="text-2xl ml-2">⚡</span>';
+            }
+        });
+
+        ideaInput.addEventListener('input', () => {
+            if (ideaInput.value.trim().length >= 20) {
+                hintMessage.classList.add('hidden');
+            } else if (ideaInput.value.trim().length > 0) {
+                hintMessage.classList.remove('hidden');
+            }
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const modal = document.getElementById('auth-modal');
+            if (e.target.id === 'login-btn') {
+                formTitle.textContent = 'Login';
+                authMessage.classList.add('hidden');
+                authEmail.value = '';
+                authPassword.value = '';
+                toggleLink.innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
+                modal.classList.remove('hidden');
+                modal.dataset.mode = 'login';
+            } else if (e.target.id === 'signup-btn') {
+                formTitle.textContent = 'Sign Up';
+                authMessage.classList.add('hidden');
+                authEmail.value = '';
+                authPassword.value = '';
+                toggleLink.innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
+                modal.classList.remove('hidden');
+                modal.dataset.mode = 'signup';
+            } else if (e.target.id === 'logout-btn') {
+                updateAuthStatus(null); 
+                resultsDisplay.classList.add('hidden'); 
+            }
+        });
+
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = authEmail.value;
+            const password = authPassword.value;
+            const mode = authModal.dataset.mode === 'signup'; 
+
+            handleAuth(mode, email, password);
+        });
+
+        toggleLink.addEventListener('click', () => {
+            const currentMode = authModal.dataset.mode;
+
+            if (currentMode === 'login') {
+                authModal.dataset.mode = 'signup';
+                document.getElementById('form-title').textContent = 'Sign Up';
+                document.getElementById('toggle-auth-mode').innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
+            } else {
+                authModal.dataset.mode = 'login';
+                document.getElementById('form-title').textContent = 'Login';
+                document.getElementById('toggle-auth-mode').innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
+            }
             authEmail.value = '';
             authPassword.value = '';
-            toggleLink.innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
-            modal.classList.remove('hidden');
-            modal.dataset.mode = 'login';
-        } else if (e.target.id === 'signup-btn') {
-            formTitle.textContent = 'Sign Up';
             authMessage.classList.add('hidden');
-            authEmail.value = '';
-            authPassword.value = '';
-            toggleLink.innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
-            modal.classList.remove('hidden');
-            modal.dataset.mode = 'signup';
-        } else if (e.target.id === 'logout-btn') {
-            updateAuthStatus(null); 
-            resultsDisplay.classList.add('hidden'); 
-        }
+        });
+
+        // **FIXED BUG:** Auth Modal Close on backdrop click only
+        authModal.addEventListener('click', (e) => {
+            if (e.target.id === 'auth-modal') {
+                e.target.classList.add('hidden');
+            }
+        });
+
+        historyBtn.addEventListener('click', () => {
+            document.getElementById('history-display').classList.toggle('hidden');
+        });
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            displayMessage(message, 'user');
+            chatInput.value = '';
+            chatSendButton.disabled = true;
+
+            const loadingMsg = document.createElement('div');
+            loadingMsg.id = 'ai-loading';
+            loadingMsg.classList.add('text-center', 'py-2', 'text-sm', 'italic', 'text-gray-400', 'mx-3');
+            loadingMsg.innerHTML = '<span id="head3">Assistant is typing...</span>';
+            chatLog.appendChild(loadingMsg);
+            scrollToBottom();
+
+            try {
+                const response = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                loadingMsg.remove();
+                displayMessage(data.reply, 'ai');
+
+            } catch (error) {
+                const loader = document.getElementById('ai-loading');
+                if (loader) loader.remove();
+
+                const errorMessage = error.message.includes("/chat endpoint") ? error.message : "Error: Could not reach assistant. Please check server connection.";
+                displayMessage(errorMessage, 'ai');
+                console.error("Chat Error:", error);
+            } finally {
+                chatSendButton.disabled = false;
+            }
+        });
+
+        toggleChatButton.addEventListener('click', () => {
+            isChatOpen = !chatWindow.classList.toggle('hidden');
+            chatToggleIcon.textContent = isChatOpen ? '−' : '+';
+        });
+        
+        // Initial setup of button classes (for the animation)
+        updateAuthStatus(null); 
+
     });
-
-    authForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = authEmail.value;
-        const password = authPassword.value;
-        const mode = authModal.dataset.mode === 'signup'; 
-
-        handleAuth(mode, email, password);
-    });
-
-    toggleLink.addEventListener('click', () => {
-        const currentMode = authModal.dataset.mode;
-
-        if (currentMode === 'login') {
-            authModal.dataset.mode = 'signup';
-            document.getElementById('form-title').textContent = 'Sign Up';
-            document.getElementById('toggle-auth-mode').innerHTML = 'Already have an account? <span class="text-indigo-400 hover:underline">Login</span>';
-        } else {
-            authModal.dataset.mode = 'login';
-            document.getElementById('form-title').textContent = 'Login';
-            document.getElementById('toggle-auth-mode').innerHTML = 'New user? <span class="text-indigo-400 hover:underline">Sign Up</span>';
-        }
-        authEmail.value = '';
-        authPassword.value = '';
-        authMessage.classList.add('hidden');
-    });
-
-    authModal.addEventListener('click', (e) => {
-        if (e.target.id === 'auth-modal') {
-            e.target.classList.add('hidden');
-        }
-    });
-
-    historyBtn.addEventListener('click', () => {
-        document.getElementById('history-display').classList.toggle('hidden');
-    });
-
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const message = chatInput.value.trim();
-        if (!message) return;
-
-        displayMessage(message, 'user');
-        chatInput.value = '';
-        chatSendButton.disabled = true;
-
-        const loadingMsg = document.createElement('div');
-        loadingMsg.id = 'ai-loading';
-        loadingMsg.classList.add('text-center', 'py-2', 'text-sm', 'italic', 'text-gray-400', 'mx-3');
-        loadingMsg.innerHTML = '<span id="head3">Assistant is typing...</span>';
-        chatLog.appendChild(loadingMsg);
-        scrollToBottom();
-
-        try {
-            const response = await fetch(CHAT_ENDPOINT, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ message: message })
-             });
-            
-            const data = await response.json();
-            loadingMsg.remove();
-            displayMessage(data.reply, 'ai');
-
-        } catch (error) {
-            const loader = document.getElementById('ai-loading');
-            if (loader) loader.remove();
-
-            const errorMessage = error.message.includes("/chat endpoint") ? error.message : "Error: Could not reach assistant. Please check server connection.";
-            displayMessage(errorMessage, 'ai');
-            console.error("Chat Error:", error);
-        } finally {
-            chatSendButton.disabled = false;
-        }
-    });
-
-    toggleChatButton.addEventListener('click', () => {
-        isChatOpen = !chatWindow.classList.toggle('hidden');
-        chatToggleIcon.textContent = isChatOpen ? '−' : '+';
-    });
-
-});
     </script>
 </body>
 </html>
